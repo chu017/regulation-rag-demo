@@ -6,17 +6,32 @@
 
 ## Setup (5 minutes)
 
-### 1. Install Dependencies
+### 1. Install Ghostscript (Required BEFORE parsing PDFs)
+
+**⚠️ Important**: Ghostscript must be installed **BEFORE** running `parse_pdf.py`. It's a system-level dependency used automatically by the PDF table extraction.
+
+**Quick install:**
+- **Windows**: Download installer from [ghostscript.com](https://www.ghostscript.com/download/gsdnld.html) or use `choco install ghostscript`
+- **Linux (Ubuntu/Debian)**: `sudo apt-get install ghostscript python3-tk`
+- **macOS**: `brew install ghostscript`
+
+**Verify installation:**
+```bash
+# Windows
+gswin64c --version
+
+# macOS/Linux
+gs --version
+```
+
+**Detailed instructions**: See [GHOSTSCRIPT_INSTALL.md](GHOSTSCRIPT_INSTALL.md) for step-by-step guide
+
+### 2. Install Python Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-**Note for table extraction**: Install Ghostscript:
-- Windows: Download from [ghostscript.com](https://www.ghostscript.com/download/gsdnld.html)
-- Linux: `sudo apt-get install ghostscript python3-tk`
-- macOS: `brew install ghostscript`
-
-### 2. Configure API Key
+### 3. Configure API Key
 Create a `.env` file in the project root with your Gemini API key:
 ```bash
 # Create .env file (or edit if it already exists)
@@ -24,7 +39,7 @@ Create a `.env` file in the project root with your Gemini API key:
 GEMINI_API_KEY=your_actual_api_key_here
 ```
 
-### 3. Add Regulation PDFs
+### 4. Add Regulation PDFs
 Organize PDFs in this structure:
 ```
 data/raw/
@@ -35,10 +50,15 @@ data/raw/
 └── ...
 ```
 
-### 4. Build the Index
-Run these scripts in order:
+### 5. Build the Index
+**Optional**: Test Ghostscript first:
 ```bash
-# Parse PDFs
+python scripts/test_ghostscript.py
+```
+
+Then run these scripts in order:
+```bash
+# Parse PDFs (uses Ghostscript automatically for table extraction)
 python scripts/parse_pdf.py
 
 # Chunk text
@@ -48,7 +68,7 @@ python scripts/chunk_text.py
 python scripts/embed_index.py
 ```
 
-### 5. Run the Demo
+### 6. Run the Demo
 ```bash
 streamlit run app/app.py
 ```
@@ -63,9 +83,13 @@ Open your browser to `http://localhost:8501` and enter a Bay Area address!
 
 **"FAISS index not found"**: Run `python scripts/embed_index.py` first
 
-**Table extraction fails**: Install Ghostscript (see Prerequisites)
+**Table extraction fails**: Install Ghostscript (see Step 1 above) and verify with `python scripts/test_ghostscript.py`
 
 **Verify your setup**: Run `python scripts/verify_setup.py` to check everything is configured correctly
+
+**Test Ghostscript before parsing**: Run `python scripts/test_ghostscript.py` to verify Ghostscript is installed correctly
+
+**Test end-to-end pipeline**: After building the index, run `python scripts/test_end_to_end.py` to verify the complete workflow
 
 ## What's Next?
 

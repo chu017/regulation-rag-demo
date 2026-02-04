@@ -125,6 +125,35 @@ def check_data_files():
     return True
 
 
+def check_ghostscript():
+    """Check if Ghostscript is installed."""
+    import subprocess
+    import platform
+    
+    if platform.system() == "Windows":
+        commands = ['gswin64c', 'gswin32c', 'gs']
+    else:
+        commands = ['gs']
+    
+    for cmd in commands:
+        try:
+            result = subprocess.run(
+                [cmd, '--version'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                print(f"✅ Ghostscript found: {result.stdout.strip()}")
+                return True
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+    
+    print("⚠️  Ghostscript not found (required for table extraction)")
+    print("   See GHOSTSCRIPT_INSTALL.md for installation instructions")
+    return False
+
+
 def main():
     print("=" * 50)
     print("Regulation RAG MVP - Setup Verification")
@@ -141,11 +170,15 @@ def main():
     results.append(check_dependencies())
     print()
     
-    print("3. Checking directory structure...")
+    print("3. Checking Ghostscript...")
+    check_ghostscript()  # Warning only, not blocking
+    print()
+    
+    print("4. Checking directory structure...")
     results.append(check_directories())
     print()
     
-    print("4. Checking data files...")
+    print("5. Checking data files...")
     check_data_files()
     print()
     

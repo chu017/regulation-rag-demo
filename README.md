@@ -28,8 +28,8 @@ This system processes local regulation PDFs, chunks them into searchable segment
 pip install -r requirements.txt
 ```
 
-**Note**: `camelot-py` requires additional system dependencies for table extraction:
-- Windows: Install [Ghostscript](https://www.ghostscript.com/download/gsdnld.html)
+**Note**: `camelot-py` requires Ghostscript for table extraction. See [GHOSTSCRIPT_INSTALL.md](GHOSTSCRIPT_INSTALL.md) for detailed installation instructions:
+- Windows: Download installer or use `choco install ghostscript`
 - Linux: `sudo apt-get install ghostscript python3-tk`
 - macOS: `brew install ghostscript`
 
@@ -146,6 +146,10 @@ Edit `config.py` to adjust:
 **API errors**: Verify `GEMINI_API_KEY` is set in `.env` file
 
 **Verify setup**: Run `python scripts/verify_setup.py` to check your configuration
+
+**Test scripts available**:
+- `python scripts/test_ghostscript.py` - Verify Ghostscript installation
+- `python scripts/test_end_to_end.py` - Test complete pipeline (after building index)
 
 ## Disclaimer
 
