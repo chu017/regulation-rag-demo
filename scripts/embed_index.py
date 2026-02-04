@@ -17,7 +17,10 @@ from config import CHUNKS_DIR, FAISS_DIR, EMBEDDING_MODEL
 def load_api_key():
     """Load Gemini API key from environment."""
     from dotenv import load_dotenv
-    load_dotenv()
+    
+    # Load .env from project root (parent directory)
+    env_path = Path(__file__).parent.parent / ".env"
+    load_dotenv(dotenv_path=env_path)
     
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
