@@ -4,11 +4,11 @@ Supports filtering by city and zoning.
 """
 import json
 import os
-import google.generativeai as genai
 import faiss
 import numpy as np
 from pathlib import Path
 import sys
+import requests
 
 sys.path.append(str(Path(__file__).parent.parent))
 from config import FAISS_DIR, EMBEDDING_MODEL, TOP_K
@@ -26,14 +26,29 @@ def load_api_key():
     return api_key
 
 
-def get_query_embedding(query_text, model=EMBEDDING_MODEL):
-    """Get embedding for query text."""
-    result = genai.embed_content(
-        model=model,
-        content=query_text,
-        task_type="RETRIEVAL_QUERY"
-    )
-    return np.array([result['embedding']]).astype('float32')
+def get_query_embedding(query_text, model=EMBEDDING_MODEL, api_key=None):
+    """Get embedding for query text using Gemini API REST endpoint."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:embedContent"
+    
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": api_key
+    }
+    
+    payload = {
+        "content": {
+            "parts": [{
+                "text": query_text
+            }]
+        },
+        "taskType": "RETRIEVAL_QUERY"
+    }
+    
+    response = requests.post(url, headers=headers, json=payload)
+    response.raise_for_status()
+    
+    result = response.json()
+    return np.array([result["embedding"]["values"]]).astype('float32')
 
 
 def load_index_and_metadata():
@@ -82,15 +97,14 @@ def retrieve(query_text, city=None, zoning=None, top_k=TOP_K):
     Returns:
         List of chunk dictionaries with similarity scores
     """
-    # Initialize API
+    # Load API key
     api_key = load_api_key()
-    genai.configure(api_key=api_key)
     
     # Load index and metadata
     index, metadata = load_index_and_metadata()
     
     # Get query embedding
-    query_embedding = get_query_embedding(query_text)
+    query_embedding = get_query_embedding(query_text, api_key=api_key)
     
     # Filter metadata if filters provided
     if city or zoning:

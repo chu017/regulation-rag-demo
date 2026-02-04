@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 # Model configuration
-EMBEDDING_MODEL = "models/embedding-001"
+EMBEDDING_MODEL = "gemini-embedding-001"
 GENERATION_MODEL = "gemini-1.5-flash"
 
 # Chunking configuration

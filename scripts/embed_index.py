@@ -4,11 +4,11 @@ Store: faiss.index and metadata.json mapping chunk_id to source info.
 """
 import json
 import os
-import google.generativeai as genai
 import faiss
 import numpy as np
 from pathlib import Path
 import sys
+import requests
 
 sys.path.append(str(Path(__file__).parent.parent))
 from config import CHUNKS_DIR, FAISS_DIR, EMBEDDING_MODEL
@@ -29,14 +29,29 @@ def load_api_key():
     return api_key
 
 
-def get_embedding(text, model=EMBEDDING_MODEL):
-    """Get embedding for text using Gemini API."""
-    result = genai.embed_content(
-        model=model,
-        content=text,
-        task_type="RETRIEVAL_DOCUMENT"
-    )
-    return result['embedding']
+def get_embedding(text, model=EMBEDDING_MODEL, api_key=None):
+    """Get embedding for text using Gemini API REST endpoint."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:embedContent"
+    
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": api_key
+    }
+    
+    payload = {
+        "content": {
+            "parts": [{
+                "text": text
+            }]
+        },
+        "taskType": "RETRIEVAL_DOCUMENT"
+    }
+    
+    response = requests.post(url, headers=headers, json=payload)
+    response.raise_for_status()
+    
+    result = response.json()
+    return result["embedding"]["values"]
 
 
 def build_index():
@@ -46,9 +61,8 @@ def build_index():
     if not chunks_file.exists():
         raise FileNotFoundError(f"Chunks file not found: {chunks_file}. Run chunk_text.py first.")
     
-    # Load API key and initialize
+    # Load API key
     api_key = load_api_key()
-    genai.configure(api_key=api_key)
     
     # Load chunks
     chunks = []
@@ -68,7 +82,7 @@ def build_index():
             print(f"  Processing chunk {i+1}/{len(chunks)}...")
         
         try:
-            embedding = get_embedding(chunk["text"])
+            embedding = get_embedding(chunk["text"], api_key=api_key)
             embeddings.append(embedding)
             
             # Store metadata
