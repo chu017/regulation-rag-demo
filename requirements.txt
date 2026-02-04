@@ -1,0 +1,9 @@
+pdfplumber
+camelot-py[cv]
+tiktoken
+faiss-cpu
+google-generativeai
+python-dotenv
+streamlit
+pandas
+requests
