@@ -3,7 +3,7 @@ Strategy matching module: Hard rules for SB9/ADU eligibility + LLM explanation.
 """
 import json
 import os
-import google.generativeai as genai
+import requests
 from pathlib import Path
 import sys
 
@@ -113,9 +113,6 @@ def generate_strategy_explanation(strategy_result, retrieved_chunks, property_co
     Returns:
         Enhanced strategy result with LLM explanation and citations
     """
-    api_key = load_api_key()
-    genai.configure(api_key=api_key)
-    
     # Load prompt template
     prompt_file = Path(__file__).parent.parent / "prompts" / "strategy_prompt.txt"
     if prompt_file.exists():
@@ -170,12 +167,45 @@ Please explain:
 3. Cite page numbers for all claims
 4. If information is missing, state "NOT FOUND" for that aspect"""
     
-    # Generate explanation
-    model = genai.GenerativeModel(GENERATION_MODEL)
+    # Generate explanation using REST API
+    # Note: The old google.generativeai package doesn't have GenerativeModel for Gemini
+    # Using REST API which works with the current setup
+    api_key = load_api_key()
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GENERATION_MODEL}:generateContent"
+    
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": api_key
+    }
+    
+    # Combine system prompt and user prompt
+    full_prompt = system_prompt + "\n\n" + user_prompt
+    
+    payload = {
+        "contents": [{
+            "parts": [{
+                "text": full_prompt
+            }]
+        }]
+    }
     
     try:
-        response = model.generate_content(system_prompt + "\n\n" + user_prompt)
-        explanation = response.text
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        result = response.json()
+        
+        # Extract text from response
+        if "candidates" in result and len(result["candidates"]) > 0:
+            if "content" in result["candidates"][0]:
+                parts = result["candidates"][0]["content"].get("parts", [])
+                if parts and "text" in parts[0]:
+                    explanation = parts[0]["text"]
+                else:
+                    explanation = "Error: No text in response"
+            else:
+                explanation = "Error: No content in response"
+        else:
+            explanation = "Error: No candidates in response"
     except Exception as e:
         explanation = f"Error generating explanation: {e}"
     
