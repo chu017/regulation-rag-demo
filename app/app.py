@@ -13,7 +13,7 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from scripts.property_api import get_property_info_from_address
+from scripts.parcelz_property_api import get_property_info_from_address
 from scripts.retrieve import retrieve
 from scripts.strategy import analyze_strategies
 

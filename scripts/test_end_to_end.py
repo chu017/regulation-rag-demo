@@ -96,7 +96,7 @@ def test_pipeline_steps():
         print("6. Testing strategy analysis...")
         try:
             from scripts.strategy import analyze_strategies
-            from scripts.property_api import get_property_info_from_address
+            from scripts.parcelz_property_api import get_property_info_from_address
             
             # Test with a sample address
             test_address = "123 Main St, San Jose, CA"
