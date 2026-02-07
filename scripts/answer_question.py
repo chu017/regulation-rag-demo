@@ -74,23 +74,21 @@ def answer_question(
     # Build evidence list for traceback (file, page, line)
     evidence = build_evidence_list(retrieved_chunks)
 
-    # Format regulation excerpts with clear source citations for the LLM
+    # Format regulation excerpts with numbered sources [1], [2], ... for inline citation
     regulation_text = ""
     for i, chunk in enumerate(retrieved_chunks):
-        regulation_text += f"\n\n--- Source {i+1} ---\n"
-        regulation_text += f"Source file: {chunk.get('regulation', 'Unknown')}.pdf\n"
-        regulation_text += f"Page: {chunk.get('page_start')}-{chunk.get('page_end')}\n"
-        regulation_text += f"Lines: {chunk.get('line_start')}-{chunk.get('line_end')}\n"
+        regulation_text += f"\n\n--- [{i+1}] ---\n"
+        regulation_text += f"Source: {chunk.get('regulation', 'Unknown')}.pdf, Page {chunk.get('page_start')}-{chunk.get('page_end')}, Lines {chunk.get('line_start')}-{chunk.get('line_end')}\n"
         regulation_text += f"Text:\n{chunk.get('text', '')}\n"
 
     system_prompt = """You are a regulation Q&A assistant. Answer the user's question using ONLY the provided property information and regulation excerpts.
 
-RULES:
-1. Use ONLY the provided regulation text. Do not use external knowledge.
-2. For every claim or requirement you state, cite the source: file name, page number, and line range (e.g. "Source: SF_Zoning.pdf, Page 10, Lines 1-15").
-3. If the answer is not in the provided text, say "NOT FOUND in the provided regulations" for that part.
-4. Do not give legal advice; only summarize what the regulations state.
-5. Be specific: mention exact numbers (lot size, setbacks, etc.) and cite where they come from."""
+CITATION FORMAT (required):
+- Each excerpt is labeled [1], [2], [3], ... in order.
+- In your answer, after every factual claim, add the corresponding citation in square brackets, e.g. [1] or [2].
+- Example: "The minimum lot size is 5,000 sqft [1]. Setbacks are 20 feet [2]."
+- Use ONLY the provided regulation text. If information is missing, say "NOT FOUND in the provided regulations" and do not add a citation for that part.
+- Do not give legal advice; only summarize what the regulations state. Be specific (numbers, requirements) and cite each claim with [n]."""
 
     user_prompt = f"""Property information:
 - Address: {property_info.get('address', 'Unknown')}
@@ -101,13 +99,10 @@ RULES:
 
 User question: {user_question}
 
-Relevant regulation excerpts (with source file, page, and line info):
+Relevant regulation excerpts (cite using [1], [2], [3], ... in your answer):
 {regulation_text}
 
-Provide a clear answer that:
-1. Directly addresses the user's question.
-2. Cites source file name, page, and line numbers for every factual claim.
-3. Notes when information is missing from the provided excerpts."""
+Provide a clear answer that directly addresses the question. After each factual claim, cite the source number in square brackets, e.g. [1] or [2]. Notes when information is missing from the provided excerpts."""
 
     api_key = load_api_key()
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{GENERATION_MODEL}:generateContent"

@@ -8,6 +8,7 @@ User workflow:
 4. System uses property info + user question to query the embedding store and generate an answer
 5. Answer is shown with evidence traceback (source file, page, line) from original PDF sources
 """
+import re
 import streamlit as st
 import sys
 from pathlib import Path
@@ -18,6 +19,15 @@ sys.path.append(str(Path(__file__).parent.parent))
 from scripts.parcelz_property_api import get_property_info_from_address
 from scripts.retrieve import retrieve
 from scripts.answer_question import answer_question
+
+
+def _highlight_citations(text: str) -> str:
+    """Wrap citation markers [1], [2], ... in a highlighted span for display."""
+    return re.sub(
+        r"\[(\d+)\]",
+        r'<span style="background-color: #e3f2fd; padding: 2px 6px; border-radius: 4px; font-weight: 600;">[\1]</span>',
+        text,
+    )
 
 
 def main():
@@ -112,19 +122,24 @@ def main():
                             result = answer_question(property_info, user_question.strip(), retrieved_chunks)
 
                             st.subheader("Answer")
-                            st.markdown(result["answer"])
+                            answer_html = _highlight_citations(result["answer"])
+                            st.markdown(answer_html, unsafe_allow_html=True)
 
-                            # Evidence traceback: source file, page, line from original PDF
-                            st.subheader("Evidence (traceback to source)")
-                            st.markdown("Sources used to generate the answer, with file name, page, and line references from the original PDF data:")
-                            for i, ev in enumerate(result["evidence"], 1):
-                                page_str = f"Page {ev['page_start']}" if ev.get('page_start') == ev.get('page_end') else f"Pages {ev['page_start']}-{ev['page_end']}"
-                                line_str = ""
-                                if ev.get("line_start") is not None and ev.get("line_end") is not None:
-                                    line_str = f", Lines {ev['line_start']}-{ev['line_end']}"
-                                with st.expander(f"**{ev.get('source_file', 'Unknown')}** — {page_str}{line_str}", expanded=False):
-                                    st.caption(f"Chunk ID: {ev.get('chunk_id', '—')}")
-                                    st.text(ev.get("text", "") or "(no excerpt)")
+                            # 出处：紧接在答案下方，直接标注 [1][2] 对应的来源（文件、页、行）
+                            if result.get("evidence"):
+                                st.markdown("**出处 (References)**")
+                                ref_lines = []
+                                for i, ev in enumerate(result["evidence"], 1):
+                                    page_str = f"Page {ev.get('page_start')}" if ev.get('page_start') == ev.get('page_end') else f"Pages {ev.get('page_start')}-{ev.get('page_end')}"
+                                    line_str = ""
+                                    if ev.get("line_start") is not None and ev.get("line_end") is not None:
+                                        line_str = f", Lines {ev['line_start']}-{ev['line_end']}"
+                                    ref_lines.append(f"- **[{i}]** {ev.get('source_file', 'Unknown')} — {page_str}{line_str}")
+                                st.markdown("\n".join(ref_lines))
+                                for i, ev in enumerate(result["evidence"], 1):
+                                    with st.expander(f"查看 [{i}] 原文", expanded=False):
+                                        st.caption(f"Chunk ID: {ev.get('chunk_id', '—')}")
+                                        st.text(ev.get("text", "") or "(no excerpt)")
                             st.session_state["last_answer"] = result
                             st.session_state["last_question"] = user_question.strip()
                     except Exception as e:
