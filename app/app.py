@@ -8,6 +8,7 @@ User workflow:
 4. System uses property info + user question to query the embedding store and generate an answer
 5. Answer is shown with evidence traceback (source file, page, line) from original PDF sources
 """
+import html
 import re
 import streamlit as st
 import sys
@@ -22,12 +23,20 @@ from scripts.answer_question import answer_question
 
 
 def _highlight_citations(text: str) -> str:
-    """Wrap citation markers [1], [2], ... in a highlighted span for display."""
-    return re.sub(
+    """Highlight citation markers [1],[2] and full (Source: ...) blocks in the answer."""
+    # Full source citation: (Source: ... .pdf, Page ..., Lines ..., Section ...) — light green
+    text = re.sub(
+        r"\(Source:(?:[^()]+|\([^()]*\))+\)",
+        lambda m: f'<span style="background-color: #e8f5e9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em;">{html.escape(m.group(0))}</span>',
+        text,
+    )
+    # Short citation markers [1], [2], ... — light blue
+    text = re.sub(
         r"\[(\d+)\]",
         r'<span style="background-color: #e3f2fd; padding: 2px 6px; border-radius: 4px; font-weight: 600;">[\1]</span>',
         text,
     )
+    return text
 
 
 def main():
