@@ -5,8 +5,10 @@ import os
 from pathlib import Path
 
 # Model configuration
+# See https://ai.google.dev/gemini-api/docs/models for current model IDs
 EMBEDDING_MODEL = "gemini-embedding-001"
-GENERATION_MODEL = "gemini-1.5-flash"
+# gemini-1.5-flash returns 404; use a current model (e.g. gemini-2.5-flash or gemini-2.0-flash)
+GENERATION_MODEL = "gemini-2.5-flash"
 
 # Chunking configuration
 CHUNK_SIZE = 700  # Target tokens per chunk (600-800 range)

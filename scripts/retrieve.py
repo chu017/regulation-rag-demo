@@ -70,17 +70,32 @@ def load_index_and_metadata():
     return index, metadata
 
 
+def _normalize_city(s):
+    """Normalize city for comparison (e.g. 'San Francisco' and 'san_francisco' match)."""
+    if not s or not str(s).strip():
+        return None
+    return str(s).strip().lower().replace(" ", "_")
+
+
 def filter_metadata(metadata, city=None, zoning=None):
-    """Filter metadata by city and/or zoning."""
+    """Filter metadata by city and/or zoning. City comparison is normalized."""
+    # Treat empty string as no filter
+    city = city if city and str(city).strip() else None
+    zoning = zoning if zoning and str(zoning).strip() else None
+
+    city_norm = _normalize_city(city) if city else None
+
     filtered_indices = []
-    
     for idx, item in enumerate(metadata):
-        match_city = city is None or item.get("city") == city
+        match_city = True
+        if city_norm is not None:
+            item_city = item.get("city")
+            match_city = item_city is not None and _normalize_city(item_city) == city_norm
         match_zoning = zoning is None or item.get("zoning") == zoning
-        
+
         if match_city and match_zoning:
             filtered_indices.append(idx)
-    
+
     return filtered_indices
 
 
@@ -106,33 +121,33 @@ def retrieve(query_text, city=None, zoning=None, top_k=TOP_K):
     # Get query embedding
     query_embedding = get_query_embedding(query_text, api_key=api_key)
     
+    # Treat empty string as no filter
+    city = city if city and str(city).strip() else None
+    zoning = zoning if zoning and str(zoning).strip() else None
+    city_norm = _normalize_city(city) if city else None
+
     # Filter metadata if filters provided
     if city or zoning:
         filtered_indices = filter_metadata(metadata, city=city, zoning=zoning)
         if not filtered_indices:
-            print(f"Warning: No chunks match filters (city={city}, zoning={zoning})")
-            return []
-        
-        # Create filtered index
-        filtered_embeddings = []
-        filtered_metadata = []
-        for idx in filtered_indices:
-            # We need to reconstruct embeddings, but we don't have them stored
-            # So we'll search all and filter results
-            filtered_metadata.append((idx, metadata[idx]))
-        
-        # Search in full index, then filter results
+            # No chunks match filter; fall back to unfiltered search so user still gets an answer
+            print(f"Warning: No chunks match filters (city={city}, zoning={zoning}); using unfiltered search.")
+            city_norm = None
+            zoning = None
+        # Search in full index, then filter results (or take all if filter was relaxed)
         k = min(top_k * 3, index.ntotal)  # Get more results to filter
         distances, indices = index.search(query_embedding, k)
         
-        # Filter results
+        # Filter results (use same normalized city logic)
         results = []
         for dist, idx in zip(distances[0], indices[0]):
-            if city and metadata[idx].get("city") != city:
-                continue
+            if city_norm is not None:
+                item_city = metadata[idx].get("city")
+                if item_city is None or _normalize_city(item_city) != city_norm:
+                    continue
             if zoning and metadata[idx].get("zoning") != zoning:
                 continue
-            
+
             results.append({
                 "chunk_id": metadata[idx]["chunk_id"],
                 "text": metadata[idx]["text"],
@@ -146,10 +161,31 @@ def retrieve(query_text, city=None, zoning=None, top_k=TOP_K):
                 "distance": float(dist),
                 "similarity": 1.0 / (1.0 + float(dist))  # Convert distance to similarity
             })
-            
+
             if len(results) >= top_k:
                 break
-        
+
+        # Fallback: if filter matched no results, search without filters so user gets an answer
+        if not results and index.ntotal > 0:
+            k = min(top_k, index.ntotal)
+            distances, indices = index.search(query_embedding, k)
+            results = []
+            for dist, idx in zip(distances[0], indices[0]):
+                results.append({
+                    "chunk_id": metadata[idx]["chunk_id"],
+                    "text": metadata[idx]["text"],
+                    "city": metadata[idx].get("city"),
+                    "zoning": metadata[idx].get("zoning"),
+                    "page_start": metadata[idx].get("page_start"),
+                    "page_end": metadata[idx].get("page_end"),
+                    "line_start": metadata[idx].get("line_start"),
+                    "line_end": metadata[idx].get("line_end"),
+                    "regulation": metadata[idx].get("regulation"),
+                    "distance": float(dist),
+                    "similarity": 1.0 / (1.0 + float(dist))
+                })
+            print("Warning: No chunks matched city/zoning filter; returning unfiltered results.")
+
         return results
     else:
         # No filters - direct search
